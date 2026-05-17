@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Match — Fake Job Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5rem; color: #ff4d4d; }
+        .header p { color: #aaa; margin-top: 10px; font-size: 1rem; }
+
+        .nav {
+            text-align: center;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: #ff4d4d;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 1px solid #ff4d4d;
+            padding: 8px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .nav a:hover { background: #ff4d4d22; }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 0 30px rgba(255,77,77,0.1);
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pdf-upload-area {
+            border: 2px dashed #333;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .pdf-upload-area:hover { border-color: #ff4d4d; background: #ff4d4d11; }
+        .pdf-upload-area p { color: #aaa; font-size: 0.85rem; margin-top: 5px; }
+        .pdf-upload-area .icon { font-size: 1.8rem; }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            padding: 15px;
+            font-size: 0.9rem;
+            resize: vertical;
+            outline: none;
+        }
+
+        textarea:focus { border-color: #ff4d4d; }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 15px;
+            margin-top: 5px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .analyze-btn:hover { background: #cc0000; }
+        .analyze-btn:disabled { background: #555; cursor: not-allowed; }
+
+        .loading { text-align: center; padding: 20px; color: #aaa; display: none; }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #ff4d4d;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-box { margin-top: 30px; display: none; }
+
+        .score-circle {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            border: 5px solid;
+        }
+
+        .score-label { font-size: 0.75rem; margin-top: 4px; }
+
+        .verdict-badge {
+            text-align: center;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            background: #0f0f1a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .section h3 {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section p { font-size: 0.95rem; line-height: 1.6; white-space: pre-line; }
+
+        .two-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .two-col { grid-template-columns: 1fr; }
+            .two-sections { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎯 Resume vs Job Match</h1>
+        <p>Find out how well your resume matches a job posting</p>
+    </div>
+
+    <div class="nav">
+        <a href="/">← Detector</a>
+        <a href="/history">📊 History</a>
+        <a href="/analytics">📈 Analytics</a>
+    </div>
+
+    <div class="card">
+        <div class="two-col">
+
+            <!-- Resume Side -->
+            <div class="input-group">
+                <label>📄 Your Resume</label>
+                <div class="pdf-upload-area" id="resumeUploadArea"
+                    onclick="document.getElementById('resumePdf').click()">
+                    <div class="icon">📄</div>
+                    <p>Click to upload Resume PDF</p>
+                    <p style="font-size:0.8rem; margin-top:3px;">or paste text below</p>
+                </div>
+                <input type="file" id="resumePdf" accept=".pdf"
+                    style="display:none" onchange="uploadResumePDF()">
+                <textarea id="resumeText"
+                    placeholder="Or paste your resume text here..."></textarea>
+            </div>
+
+            <!-- Job Side -->
+            <div class="input-group">
+                <label>💼 Job Description</label>
+                <div class="pdf-upload-area" id="jobUploadArea"
+                    onclick="document.getElementById('jobPdf').click()">
+                    <div class="icon">💼</div>
+                    <p>Click to upload Job PDF</p>
+                    <p style="font-size:0.8rem; margin-top:3px;">or paste text below</p>
+                </div>
+                <input type="file" id="jobPdf" accept=".pdf"
+                    style="display:none" onchange="uploadJobPDF()">
+                <textarea id="jobText"
+                    placeholder="Or paste the job description here..."></textarea>
+            </div>
+
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeMatch()">
+            🎯 Check Match Score
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>AI is analyzing your match...</p>
+        </div>
+
+        <div class="result-box" id="resultBox">
+
+            <div class="score-circle" id="scoreCircle">
+                <span id="scoreNumber">0%</span>
+                <span class="score-label">MATCH SCORE</span>
+            </div>
+
+            <div class="verdict-badge" id="verdictBadge">-</div>
+
+            <div class="two-sections">
+                <div class="section">
+                    <h3>✅ Matching Skills</h3>
+                    <p id="matchingSkills">-</p>
+                </div>
+                <div class="section">
+                    <h3>❌ Missing Skills</h3>
+                    <p id="missingSkills">-</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>💡 AI Recommendation</h3>
+                <p id="recommendation">-</p>
+            </div>
+
+            <div class="section">
+                <h3>🎤 Interview Tips</h3>
+                <p id="interviewTips">-</p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        async function uploadResumePDF() {
+            const file = document.getElementById("resumePdf").files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("pdf", file);
+
+            const area = document.getElementById("resumeUploadArea");
+            area.innerHTML = "<div class='icon'>⏳</div><p>Reading PDF...</p>";
+
+            try {
+                const response = await fetch("/upload-pdf", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    area.innerHTML = "<div class='icon'>📄</div><p>Click to upload Resume PDF</p><p style='font-size:0.8rem;margin-top:3px;'>or paste text below</p>";
+                } else {
+                    document.getElementById("resumeText").value = data.job_text;
+                    area.innerHTML = "<div class='icon'>✅</div><p>" + file.name + " uploaded!</p>";
+                }
+            } catch (err) {
+                alert("PDF upload failed. Please try again.");
+                area.innerHTML = "<div class='icon'>📄</div><p>Click to upload Resume PDF</p>";
+            }
+        }
+
+        async function uploadJobPDF() {
+            const file = document.getElementById("jobPdf").files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("pdf", file);
+
+            const area = document.getElementById("jobUploadArea");
+            area.innerHTML = "<div class='icon'>⏳</div><p>Reading PDF...</p>";
+
+            try {
+                const response = await fetch("/upload-pdf", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    area.innerHTML = "<div class='icon'>💼</div><p>Click to upload Job PDF</p><p style='font-size:0.8rem;margin-top:3px;'>or paste text below</p>";
+                } else {
+                    document.getElementById("jobText").value = data.job_text;
+                    area.innerHTML = "<div class='icon'>✅</div><p>" + file.name + " uploaded!</p>";
+                }
+            } catch (err) {
+                alert("PDF upload failed. Please try again.");
+                area.innerHTML = "<div class='icon'>💼</div><p>Click to upload Job PDF</p>";
+            }
+        }
+
+        async function analyzeMatch() {
+            const resumeText = document.getElementById("resumeText").value.trim();
+            const jobText = document.getElementById("jobText").value.trim();
+
+            if (!resumeText || !jobText) {
+                alert("Please provide both your resume and the job description!");
+                return;
+            }
+
+            document.getElementById("analyzeBtn").disabled = true;
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("resultBox").style.display = "none";
+
+            try {
+                const response = await fetch("/api/match", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ resume_text: resumeText, job_text: jobText })
+                });
+
+                const data = await response.json();
+                if (data.error) { alert(data.error); return; }
+
+                const text = data.result;
+
+                const scoreMatch = text.match(/MATCH_SCORE:\s*(\d+)/);
+                const verdictMatch = text.match(/VERDICT:\s*(.+)/);
+                const matchingMatch = text.match(/MATCHING_SKILLS:\s*([\s\S]*?)(?=MISSING_SKILLS:)/);
+                const missingMatch = text.match(/MISSING_SKILLS:\s*([\s\S]*?)(?=EXPERIENCE_FIT:)/);
+                const recommendationMatch = text.match(/RECOMMENDATION:\s*([\s\S]*?)(?=INTERVIEW_TIPS:)/);
+                const tipsMatch = text.match(/INTERVIEW_TIPS:\s*([\s\S]*?)$/);
+
+                const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                const verdict = verdictMatch ? verdictMatch[1].trim() : "UNKNOWN";
+
+                const circle = document.getElementById("scoreCircle");
+                document.getElementById("scoreNumber").textContent = score + "%";
+                if (score >= 70) {
+                    circle.style.borderColor = "#00cc66";
+                    circle.style.color = "#00cc66";
+                } else if (score >= 40) {
+                    circle.style.borderColor = "#ffaa00";
+                    circle.style.color = "#ffaa00";
+                } else {
+                    circle.style.borderColor = "#ff4d4d";
+                    circle.style.color = "#ff4d4d";
+                }
+
+                const badge = document.getElementById("verdictBadge");
+                badge.textContent = verdict;
+                if (verdict.includes("STRONG") || verdict.includes("GOOD")) {
+                    badge.style.background = "#00cc6622";
+                    badge.style.color = "#00cc66";
+                    badge.style.border = "1px solid #00cc66";
+                } else if (verdict.includes("PARTIAL")) {
+                    badge.style.background = "#ffaa0022";
+                    badge.style.color = "#ffaa00";
+                    badge.style.border = "1px solid #ffaa00";
+                } else {
+                    badge.style.background = "#ff4d4d22";
+                    badge.style.color = "#ff4d4d";
+                    badge.style.border = "1px solid #ff4d4d";
+                }
+
+                document.getElementById("matchingSkills").textContent =
+                    matchingMatch ? matchingMatch[1].trim() : "-";
+                document.getElementById("missingSkills").textContent =
+                    missingMatch ? missingMatch[1].trim() : "-";
+                document.getElementById("recommendation").textContent =
+                    recommendationMatch ? recommendationMatch[1].trim() : "-";
+                document.getElementById("interviewTips").textContent =
+                    tipsMatch ? tipsMatch[1].trim() : "-";
+
+                document.getElementById("resultBox").style.display = "block";
+
+            } catch (err) {
+                alert("Something went wrong. Please try again!");
+            }
+
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("analyzeBtn").disabled = false;
+        }
+    </script>
+
+</body>
+</html>

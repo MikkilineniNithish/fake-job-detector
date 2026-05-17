@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History — Fake Job Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 { font-size: 2rem; color: #ff4d4d; }
+        .header p { color: #aaa; margin-top: 8px; }
+
+        .nav {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .nav a {
+            color: #ff4d4d;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 1px solid #ff4d4d;
+            padding: 8px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .nav a:hover { background: #ff4d4d22; }
+
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            max-width: 900px;
+            margin: 0 auto 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 150px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .total { color: #ffffff; }
+        .scam { color: #ff4d4d; }
+        .suspicious { color: #ffaa00; }
+        .legitimate { color: #00cc66; }
+
+        .table-wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #1a1a2e;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 1rem; color: #aaa; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #0f0f1a;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #1a1a2e;
+            font-size: 0.9rem;
+        }
+
+        tr { background: #16162a; }
+        tr:hover { background: #1e1e38; }
+
+        .verdict-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .pill-scam { background: #ff4d4d22; color: #ff4d4d; border: 1px solid #ff4d4d55; }
+        .pill-suspicious { background: #ffaa0022; color: #ffaa00; border: 1px solid #ffaa0055; }
+        .pill-legitimate { background: #00cc6622; color: #00cc66; border: 1px solid #00cc6655; }
+
+        .score-text { font-weight: bold; }
+        .score-high { color: #ff4d4d; }
+        .score-mid { color: #ffaa00; }
+        .score-low { color: #00cc66; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+        }
+
+        .empty-state .icon { font-size: 3rem; margin-bottom: 15px; }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📊 Analysis History</h1>
+        <p>All job postings you've analyzed</p>
+    </div>
+
+    <div class="nav">
+        <a href="/">← Back to Detector</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="number total" id="statTotal">-</div>
+            <div class="label">Total Analyzed</div>
+        </div>
+        <div class="stat-card">
+            <div class="number scam" id="statScams">-</div>
+            <div class="label">Scams Found</div>
+        </div>
+        <div class="stat-card">
+            <div class="number suspicious" id="statSuspicious">-</div>
+            <div class="label">Suspicious</div>
+        </div>
+        <div class="stat-card">
+            <div class="number legitimate" id="statLegitimate">-</div>
+            <div class="label">Legitimate</div>
+        </div>
+        <div class="stat-card">
+            <div class="number scam" id="statPercent">-</div>
+            <div class="label">Scam Rate</div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+        <div class="table-header">
+            <h2>Recent Analyses</h2>
+        </div>
+        <div id="tableContainer">
+            <div class="loading-state">Loading history...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStats() {
+            const res = await fetch("/api/stats");
+            const data = await res.json();
+            document.getElementById("statTotal").textContent = data.total;
+            document.getElementById("statScams").textContent = data.scams;
+            document.getElementById("statSuspicious").textContent = data.suspicious;
+            document.getElementById("statLegitimate").textContent = data.legitimate;
+            document.getElementById("statPercent").textContent = data.scam_percentage + "%";
+        }
+
+        async function loadHistory() {
+            const res = await fetch("/api/history");
+            const jobs = await res.json();
+
+            if (jobs.length === 0) {
+                document.getElementById("tableContainer").innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🔍</div>
+                        <p>No analyses yet. Go analyze some job postings!</p>
+                    </div>`;
+                return;
+            }
+
+            let rows = jobs.map(job => {
+                const pillClass = job.verdict === "SCAM" ? "pill-scam" :
+                                  job.verdict === "SUSPICIOUS" ? "pill-suspicious" : "pill-legitimate";
+                const scoreClass = job.scam_score >= 70 ? "score-high" :
+                                   job.scam_score >= 40 ? "score-mid" : "score-low";
+                return `
+                    <tr>
+                        <td>${job.company_name}</td>
+                        <td><span class="verdict-pill ${pillClass}">${job.verdict}</span></td>
+                        <td><span class="score-text ${scoreClass}">${job.scam_score}/100</span></td>
+                        <td>${job.safe_to_apply}</td>
+                        <td style="color:#aaa; font-size:0.8rem;">${job.analyzed_at}</td>
+                    </tr>`;
+            }).join("");
+
+            document.getElementById("tableContainer").innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Verdict</th>
+                            <th>Scam Score</th>
+                            <th>Safe to Apply</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+        }
+
+        loadStats();
+        loadHistory();
+    </script>
+
+</body>
+</html>

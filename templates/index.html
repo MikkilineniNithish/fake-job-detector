@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Job Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-size: 2.5rem; color: #ff4d4d; }
+        .header p { color: #aaa; margin-top: 10px; font-size: 1rem; }
+
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            color: #ff4d4d;
+            border: 1px solid #ff4d4d;
+            padding: 8px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover { background: #ff4d4d22; }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 700px;
+            box-shadow: 0 0 30px rgba(255,77,77,0.1);
+        }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: #0f0f1a;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-align: center;
+            transition: 0.3s;
+        }
+
+        .tab.active { border-color: #ff4d4d; color: #ff4d4d; background: #ff4d4d11; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .url-row { display: flex; gap: 10px; margin-bottom: 10px; }
+
+        .url-row input {
+            flex: 1;
+            padding: 12px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .url-row input:focus { border-color: #ff4d4d; }
+
+        .fetch-btn {
+            width: 140px;
+            padding: 12px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .fetch-btn:hover { background: #444; }
+        .fetch-btn:disabled { background: #222; cursor: not-allowed; }
+
+        .url-note {
+            background: #ffaa0011;
+            border: 1px solid #ffaa0055;
+            color: #ffaa00;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .pdf-upload-area {
+            border: 2px dashed #333;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .pdf-upload-area:hover { border-color: #ff4d4d; background: #ff4d4d11; }
+        .pdf-upload-area p { color: #aaa; margin-top: 10px; font-size: 0.9rem; }
+        .pdf-upload-area .icon { font-size: 2.5rem; }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            padding: 15px;
+            font-size: 0.95rem;
+            resize: vertical;
+            outline: none;
+            margin-top: 10px;
+        }
+
+        textarea:focus { border-color: #ff4d4d; }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 15px;
+            margin-top: 15px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .analyze-btn:hover { background: #cc0000; }
+        .analyze-btn:disabled { background: #555; cursor: not-allowed; }
+
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            margin-top: 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            display: none;
+        }
+
+        .action-btn:hover { background: #444; }
+        .action-btn:disabled { background: #222; cursor: not-allowed; }
+
+        .share-btn {
+            border: 1px solid #ff4d4d !important;
+            color: #ff4d4d !important;
+            background: transparent !important;
+        }
+
+        .share-btn:hover { background: #ff4d4d22 !important; }
+
+        .result-box { margin-top: 30px; display: none; }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            border: 4px solid;
+        }
+
+        .score-label { font-size: 0.7rem; margin-top: 2px; }
+
+        .verdict-badge {
+            text-align: center;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: inline-block;
+            margin: 0 auto 20px;
+            width: 100%;
+        }
+
+        .lang-badge {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            display: none;
+            background: #ffffff11;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .section {
+            background: #0f0f1a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .section h3 {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section p { font-size: 0.95rem; line-height: 1.6; white-space: pre-line; }
+
+        .safe-badge {
+            text-align: center;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .loading { text-align: center; padding: 20px; color: #aaa; display: none; }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #ff4d4d;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-msg {
+            background: #00cc6622;
+            border: 1px solid #00cc66;
+            color: #00cc66;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .error-msg {
+            background: #ff4d4d22;
+            border: 1px solid #ff4d4d55;
+            color: #ff4d4d;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🛡️ Fake Job Detector</h1>
+        <p>Detect scam job postings instantly using AI</p>
+        <div class="nav-links">
+            <a href="/history">📊 History</a>
+            <a href="/analytics">📈 Analytics</a>
+            <a href="/match">🎯 Resume Match</a>
+        </div>
+    </div>
+
+    <div class="card">
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('paste', this)">📝 Paste Text</div>
+            <div class="tab" onclick="switchTab('url', this)">🔗 From URL</div>
+            <div class="tab" onclick="switchTab('pdf', this)">📄 Upload PDF</div>
+        </div>
+
+        <div class="tab-content active" id="tab-paste">
+            <textarea id="jobText" placeholder="Paste the job posting here... (English, Telugu, Hindi, Tamil supported!)"></textarea>
+        </div>
+
+        <div class="tab-content" id="tab-url">
+            <div class="url-note">
+                💡 Works best with company career pages. LinkedIn & Naukri block automated access — copy paste the job text instead.
+            </div>
+            <div class="url-row">
+                <input id="urlInput" type="text" placeholder="Paste job posting URL here..." />
+                <button class="fetch-btn" id="fetchBtn" onclick="scrapeUrl()">🔗 Fetch URL</button>
+            </div>
+            <div class="success-msg" id="urlSuccess">✅ Job text fetched! Click Analyze below.</div>
+            <div class="error-msg" id="urlError"></div>
+            <textarea id="jobTextUrl" placeholder="Job text will appear here after fetching URL..." readonly></textarea>
+        </div>
+
+        <div class="tab-content" id="tab-pdf">
+            <div class="pdf-upload-area" id="pdfArea" onclick="document.getElementById('pdfInput').click()">
+                <div class="icon">📄</div>
+                <p>Click to upload a PDF job posting</p>
+                <p style="font-size:0.8rem; margin-top:5px;">Supports .pdf files only</p>
+            </div>
+            <input type="file" id="pdfInput" accept=".pdf" style="display:none" onchange="uploadPDF()">
+            <div class="success-msg" id="pdfSuccess">✅ PDF text extracted! Click Analyze below.</div>
+            <textarea id="jobTextPdf" placeholder="Extracted text from PDF will appear here..." readonly></textarea>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeJob()">🔍 Analyze Job Posting</button>
+        <button class="action-btn" id="downloadBtn" onclick="downloadReport()">📄 Download PDF Report</button>
+        <button class="action-btn share-btn" id="shareBtn" onclick="shareReport()">🔗 Share Report Link</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>AI is analyzing the job posting...</p>
+        </div>
+
+        <div class="result-box" id="resultBox">
+            <div class="lang-badge" id="langBadge">
+                🌐 Language Detected: <span id="langName">-</span>
+            </div>
+            <div class="score-circle" id="scoreCircle">
+                <span id="scoreNumber">0</span>
+                <span class="score-label">SCAM SCORE</span>
+            </div>
+            <div class="verdict-badge" id="verdictBadge">-</div>
+            <div class="section">
+                <h3>🚩 Red Flags Found</h3>
+                <p id="redFlags">-</p>
+            </div>
+            <div class="section">
+                <h3>🧠 AI Explanation</h3>
+                <p id="explanation">-</p>
+            </div>
+            <div class="section">
+                <h3>🏢 Company Verification</h3>
+                <p id="companyStatus">-</p>
+            </div>
+            <div class="safe-badge" id="safeBadge">-</div>
+        </div>
+    </div>
+
+    <script>
+        let activeTab = "paste";
+        let lastResult = {};
+
+        function switchTab(tab, el) {
+            activeTab = tab;
+            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+            el.classList.add("active");
+            document.getElementById("tab-" + tab).classList.add("active");
+        }
+
+        function getJobText() {
+            if (activeTab === "paste") return document.getElementById("jobText").value.trim();
+            if (activeTab === "url") return document.getElementById("jobTextUrl").value.trim();
+            if (activeTab === "pdf") return document.getElementById("jobTextPdf").value.trim();
+            return "";
+        }
+
+        async function scrapeUrl() {
+            const url = document.getElementById("urlInput").value.trim();
+            if (!url) { alert("Please enter a URL first!"); return; }
+
+            const btn = document.getElementById("fetchBtn");
+            btn.textContent = "Fetching...";
+            btn.disabled = true;
+            document.getElementById("urlSuccess").style.display = "none";
+            document.getElementById("urlError").style.display = "none";
+
+            try {
+                const response = await fetch("/scrape", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    const errBox = document.getElementById("urlError");
+                    errBox.style.display = "block";
+                    errBox.textContent = "⚠️ This site blocks automated access (LinkedIn, Naukri etc. do this for security). Please copy the job description and paste it in the 'Paste Text' tab instead!";
+                } else {
+                    document.getElementById("jobTextUrl").value = data.job_text;
+                    document.getElementById("urlSuccess").style.display = "block";
+                }
+            } catch (err) {
+                const errBox = document.getElementById("urlError");
+                errBox.style.display = "block";
+                errBox.textContent = "⚠️ Could not fetch URL. Please paste the job text manually.";
+            }
+
+            btn.textContent = "🔗 Fetch URL";
+            btn.disabled = false;
+        }
+
+        async function uploadPDF() {
+            const file = document.getElementById("pdfInput").files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("pdf", file);
+
+            const area = document.getElementById("pdfArea");
+            area.innerHTML = "<div class='icon'>⏳</div><p>Reading PDF...</p>";
+
+            try {
+                const response = await fetch("/upload-pdf", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    area.innerHTML = "<div class='icon'>📄</div><p>Click to upload a PDF job posting</p><p style='font-size:0.8rem; margin-top:5px;'>Supports .pdf files only</p>";
+                } else {
+                    document.getElementById("jobTextPdf").value = data.job_text;
+                    document.getElementById("pdfSuccess").style.display = "block";
+                    area.innerHTML = "<div class='icon'>✅</div><p>" + file.name + " uploaded!</p>";
+                }
+            } catch (err) {
+                alert("PDF upload failed. Please try again.");
+                area.innerHTML = "<div class='icon'>📄</div><p>Click to upload a PDF job posting</p>";
+            }
+        }
+
+        async function analyzeJob() {
+            const jobText = getJobText();
+            if (!jobText) { alert("Please provide a job posting first!"); return; }
+
+            document.getElementById("analyzeBtn").disabled = true;
+            document.getElementById("downloadBtn").style.display = "none";
+            document.getElementById("shareBtn").style.display = "none";
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("resultBox").style.display = "none";
+
+            try {
+                const response = await fetch("/analyze", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ job_text: jobText })
+                });
+
+                const data = await response.json();
+                const text = data.result;
+
+                const langMatch = text.match(/LANGUAGE_DETECTED:\s*(.+)/);
+                const scoreMatch = text.match(/SCAM_SCORE:\s*(\d+)/);
+                const verdictMatch = text.match(/VERDICT:\s*(.+)/);
+                const companyMatch = text.match(/COMPANY_NAME:\s*(.+)/);
+                const flagsMatch = text.match(/RED_FLAGS_FOUND:\s*([\s\S]*?)(?=EXPLANATION:)/);
+                const explanationMatch = text.match(/EXPLANATION:\s*([\s\S]*?)(?=SAFE_TO_APPLY:)/);
+                const safeMatch = text.match(/SAFE_TO_APPLY:\s*(.+)/);
+
+                const detectedLang = langMatch ? langMatch[1].trim() : "English";
+                const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                const verdict = verdictMatch ? verdictMatch[1].trim() : "UNKNOWN";
+                const company_name = companyMatch ? companyMatch[1].trim() : "Unknown";
+                const flags = flagsMatch ? flagsMatch[1].trim() : "None found";
+                const explanation = explanationMatch ? explanationMatch[1].trim() : "-";
+                const safe = safeMatch ? safeMatch[1].trim() : "-";
+
+                // Show language badge if not English
+                const langBadge = document.getElementById("langBadge");
+                if (detectedLang && detectedLang.toLowerCase() !== "english") {
+                    langBadge.style.display = "block";
+                    document.getElementById("langName").textContent = detectedLang;
+                } else {
+                    langBadge.style.display = "none";
+                }
+
+                const circle = document.getElementById("scoreCircle");
+                document.getElementById("scoreNumber").textContent = score;
+                if (score >= 70) {
+                    circle.style.borderColor = "#ff4d4d";
+                    circle.style.color = "#ff4d4d";
+                } else if (score >= 40) {
+                    circle.style.borderColor = "#ffaa00";
+                    circle.style.color = "#ffaa00";
+                } else {
+                    circle.style.borderColor = "#00cc66";
+                    circle.style.color = "#00cc66";
+                }
+
+                const badge = document.getElementById("verdictBadge");
+                badge.textContent = verdict;
+                if (verdict.includes("SCAM")) {
+                    badge.style.background = "#ff4d4d22";
+                    badge.style.color = "#ff4d4d";
+                    badge.style.border = "1px solid #ff4d4d";
+                } else if (verdict.includes("SUSPICIOUS")) {
+                    badge.style.background = "#ffaa0022";
+                    badge.style.color = "#ffaa00";
+                    badge.style.border = "1px solid #ffaa00";
+                } else {
+                    badge.style.background = "#00cc6622";
+                    badge.style.color = "#00cc66";
+                    badge.style.border = "1px solid #00cc66";
+                }
+
+                document.getElementById("redFlags").textContent = flags;
+                document.getElementById("explanation").textContent = explanation;
+                document.getElementById("companyStatus").textContent = data.company_status;
+
+                const safeBadge = document.getElementById("safeBadge");
+                safeBadge.textContent = "Safe to Apply: " + safe;
+                if (safe === "NO") {
+                    safeBadge.style.background = "#ff4d4d22";
+                    safeBadge.style.color = "#ff4d4d";
+                } else if (safe.includes("CAUTION")) {
+                    safeBadge.style.background = "#ffaa0022";
+                    safeBadge.style.color = "#ffaa00";
+                } else {
+                    safeBadge.style.background = "#00cc6622";
+                    safeBadge.style.color = "#00cc66";
+                }
+
+                lastResult = {
+                    verdict, score, company_name, safe,
+                    flags, explanation,
+                    company_status: data.company_status
+                };
+
+                document.getElementById("resultBox").style.display = "block";
+                document.getElementById("downloadBtn").style.display = "block";
+                document.getElementById("shareBtn").style.display = "block";
+
+            } catch (err) {
+                alert("Something went wrong. Please try again!");
+            }
+
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("analyzeBtn").disabled = false;
+        }
+
+        async function downloadReport() {
+            const btn = document.getElementById("downloadBtn");
+            btn.textContent = "Generating PDF...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch("/download-report", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(lastResult)
+                });
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "job_report.pdf";
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert("Could not generate PDF. Please try again!");
+            }
+
+            btn.textContent = "📄 Download PDF Report";
+            btn.disabled = false;
+        }
+
+        async function shareReport() {
+            const btn = document.getElementById("shareBtn");
+            btn.textContent = "Generating link...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch("/api/share", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(lastResult)
+                });
+                const data = await response.json();
+                const link = window.location.origin + "/report/" + data.slug;
+                await navigator.clipboard.writeText(link);
+                alert("🎉 Link copied!\n\n" + link + "\n\nShare this with anyone!");
+            } catch (err) {
+                alert("Could not generate link. Please try again!");
+            }
+
+            btn.textContent = "🔗 Share Report Link";
+            btn.disabled = false;
+        }
+    </script>
+
+</body>
+</html>
