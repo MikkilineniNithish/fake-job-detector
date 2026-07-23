@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics — Fake Job Detector</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; color: #ff4d4d; }
+        .header p { color: #aaa; margin-top: 8px; }
+
+        .nav { text-align: center; margin-bottom: 30px; display: flex; justify-content: center; gap: 15px; }
+
+        .nav a {
+            color: #ff4d4d;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 1px solid #ff4d4d;
+            padding: 8px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .nav a:hover { background: #ff4d4d22; }
+
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            max-width: 900px;
+            margin: 0 auto 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 150px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .number { font-size: 2rem; font-weight: bold; }
+        .stat-card .label { font-size: 0.8rem; color: #aaa; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto 30px;
+        }
+
+        .chart-card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .chart-card h3 {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .flags-card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .flags-card h3 {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .flag-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .flag-label { font-size: 0.85rem; flex: 1; color: #ddd; }
+
+        .flag-bar-wrap {
+            flex: 2;
+            background: #0f0f1a;
+            border-radius: 5px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .flag-bar {
+            height: 100%;
+            background: #ff4d4d;
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+
+        .flag-count {
+            font-size: 0.85rem;
+            color: #ff4d4d;
+            font-weight: bold;
+            width: 30px;
+            text-align: right;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .empty-state .icon { font-size: 3rem; margin-bottom: 15px; }
+
+        @media (max-width: 600px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📈 Analytics Dashboard</h1>
+        <p>Insights from all analyzed job postings</p>
+    </div>
+
+    <div class="nav">
+        <a href="/">← Detector</a>
+        <a href="/history">📊 History</a>
+    </div>
+
+    <div id="mainContent">
+        <p style="text-align:center; color:#aaa;">Loading analytics...</p>
+    </div>
+
+    <script>
+        async function loadAnalytics() {
+            const res = await fetch("/api/analytics");
+            const data = await res.json();
+
+            if (data.error) {
+                document.getElementById("mainContent").innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <p>No data yet! Go analyze some job postings first.</p>
+                        <a href="/" style="color:#ff4d4d; margin-top:15px; display:inline-block;">Go to Detector →</a>
+                    </div>`;
+                return;
+            }
+
+            document.getElementById("mainContent").innerHTML = `
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="number" style="color:#fff">${data.total}</div>
+                        <div class="label">Total Analyzed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" style="color:#ff4d4d">${data.verdicts.SCAM}</div>
+                        <div class="label">Scams Found</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" style="color:#ffaa00">${data.verdicts.SUSPICIOUS}</div>
+                        <div class="label">Suspicious</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" style="color:#00cc66">${data.verdicts.LEGITIMATE}</div>
+                        <div class="label">Legitimate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" style="color:#ff4d4d">${data.avg_score}</div>
+                        <div class="label">Avg Scam Score</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>🥧 Verdict Distribution</h3>
+                        <canvas id="verdictChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>📊 Scam Score Ranges</h3>
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="flags-card">
+                    <h3>🚩 Most Common Red Flags</h3>
+                    <div id="flagsList"></div>
+                </div>
+            `;
+
+            // Verdict Pie Chart
+            new Chart(document.getElementById("verdictChart"), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Scam', 'Suspicious', 'Legitimate'],
+                    datasets: [{
+                        data: [data.verdicts.SCAM, data.verdicts.SUSPICIOUS, data.verdicts.LEGITIMATE],
+                        backgroundColor: ['#ff4d4d', '#ffaa00', '#00cc66'],
+                        borderColor: '#1a1a2e',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { labels: { color: '#fff', font: { size: 12 } } }
+                    }
+                }
+            });
+
+            // Score Bar Chart
+            new Chart(document.getElementById("scoreChart"), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data.score_ranges),
+                    datasets: [{
+                        label: 'Jobs',
+                        data: Object.values(data.score_ranges),
+                        backgroundColor: ['#00cc66', '#00cc66', '#ffaa00', '#ff4d4d', '#ff4d4d'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#aaa' }, grid: { color: '#333' } },
+                        y: { ticks: { color: '#aaa', stepSize: 1 }, grid: { color: '#333' } }
+                    }
+                }
+            });
+
+            // Top Flags
+            const maxCount = data.top_flags.length > 0 ? data.top_flags[0].count : 1;
+            const flagsHtml = data.top_flags.map(f => `
+                <div class="flag-row">
+                    <div class="flag-label">${f.flag}</div>
+                    <div class="flag-bar-wrap">
+                        <div class="flag-bar" style="width:${(f.count/maxCount*100)}%"></div>
+                    </div>
+                    <div class="flag-count">${f.count}</div>
+                </div>
+            `).join('');
+
+            document.getElementById("flagsList").innerHTML = flagsHtml ||
+                '<p style="color:#aaa">Not enough data yet</p>';
+        }
+
+        loadAnalytics();
+    </script>
+
+</body>
+</html>
