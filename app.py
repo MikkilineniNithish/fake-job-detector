@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
-from detector import analyze_job, scrape_job_from_url
+# Added 'client' to the import below so /api/match works
+from detector import analyze_job, scrape_job_from_url, client 
 from datetime import datetime, timezone, timedelta
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -17,6 +18,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 IST = timezone(timedelta(hours=5, minutes=30))
+
 class SharedReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     slug = db.Column(db.String(20), unique=True)
@@ -28,6 +30,7 @@ class SharedReport(db.Model):
     explanation = db.Column(db.Text)
     company_status = db.Column(db.Text)
     created_at = db.Column(db.String, default=lambda: datetime.now(IST).strftime("%d %b %Y"))
+
 class JobAnalysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(200), default="Unknown")
@@ -45,6 +48,7 @@ with app.app_context():
 @app.route("/")
 def home():
     return render_template("index.html")
+
 @app.route("/history")
 def history():
     return render_template("history.html")
@@ -61,14 +65,12 @@ def api_analytics():
     if total == 0:
         return jsonify({"error": "No data yet"})
 
-    # Verdict counts
     verdicts = {"SCAM": 0, "SUSPICIOUS": 0, "LEGITIMATE": 0}
     for j in jobs:
         v = j.verdict.strip().upper()
         if v in verdicts:
             verdicts[v] += 1
 
-    # Score ranges
     score_ranges = {"0-20": 0, "21-40": 0, "41-60": 0, "61-80": 0, "81-100": 0}
     for j in jobs:
         s = j.scam_score
@@ -78,10 +80,8 @@ def api_analytics():
         elif s <= 80: score_ranges["61-80"] += 1
         else: score_ranges["81-100"] += 1
 
-    # Average score
     avg_score = round(sum(j.scam_score for j in jobs) / total)
 
-    # Most common red flags
     all_flags = []
     for j in jobs:
         if j.red_flags and j.red_flags != "None":
@@ -265,6 +265,7 @@ def download_report():
     return send_file(buffer, as_attachment=True,
                      download_name=f"job_report_{datetime.now(IST).strftime('%d%m%Y')}.pdf",
                      mimetype='application/pdf')
+
 @app.route("/match")
 def match():
     return render_template("match.html")
@@ -297,12 +298,14 @@ RECOMMENDATION: [2-3 sentences of honest advice for this candidate]
 INTERVIEW_TIPS: [2-3 specific tips for this particular job interview]
 """
 
+    # UPDATED MODEL NAME HERE
     response = client.models.generate_content(
-    model="gemini-2.0-flash",
+    model="gemini-3.8-flash",
     contents=prompt
 )
 
     return jsonify({"result": response.text})
+
 @app.route("/api/share", methods=["POST"])
 def share_report():
     data = request.get_json()
@@ -329,5 +332,6 @@ def view_report(slug):
     if not report:
         return "<h2 style='font-family:sans-serif;padding:40px;color:#ff4d4d'>Report not found!</h2>", 404
     return render_template("report.html", report=report)
+
 if __name__ == "__main__":
     app.run(debug=True)
