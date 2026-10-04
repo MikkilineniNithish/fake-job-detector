@@ -1,14 +1,16 @@
+import os
 import re
 import requests
 from bs4 import BeautifulSoup
+from google import genai
 
+# Initialize the Gemini client using the environment variable from Render
+# Make sure GEMINI_API_KEY is set in your Render Environment Variables!
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def scrape_job_from_url(url):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
-
+        headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -31,116 +33,57 @@ def scrape_job_from_url(url):
 
 def verify_company(company_name):
     if company_name.lower() == "not mentioned":
-        return "⚠️ Company name not found."
-
+        return "⚠️ Company name not found. Cannot verify online."
     return f"🔍 Please verify '{company_name}' using the official company website or LinkedIn."
 
 
 def analyze_job(job_text):
+    prompt = f"""
+    You are an expert fraud detection system for job postings.
+    Analyze the following job posting against 15 known scam indicators:
+    1. Unrealistic salary
+    2. Vague job description
+    3. No company name
+    4. Asks for personal information
+    5. Asks for money
+    6. Too good to be true benefits
+    7. Poor grammar
+    8. Urgency pressure
+    9. No experience needed for high pay
+    10. Generic email (gmail/yahoo)
+    11. Work from home with huge pay
+    12. No interview process
+    13. Vague location
+    14. Promises of quick money
+    15. No clear responsibilities
 
-    text = job_text.lower()
+    Job Posting:
+    {job_text}
 
-    score = 0
-    flags = []
+    Respond in this EXACT format:
+    SCAM_SCORE: [0-100]
+    VERDICT: [SCAM / SUSPICIOUS / LEGITIMATE]
+    COMPANY_NAME: [Extract company name or say "Not Mentioned"]
+    RED_FLAGS_FOUND: [List each red flag on a new line, or write "None"]
+    EXPLANATION: [2-3 sentences explaining the score and verdict]
+    SAFE_TO_APPLY: [NO / PROCEED WITH CAUTION / YES]
+    """
 
-    if "payment" in text or "registration fee" in text or "pay ₹" in text:
-        score += 30
-        flags.append("Asks for money before hiring")
-
-    if "whatsapp" in text:
-        score += 15
-        flags.append("Uses WhatsApp as primary contact")
-
-    if "@gmail.com" in text or "gmail" in text:
-        score += 15
-        flags.append("Uses Gmail instead of official company email")
-
-    if "immediate joining" in text:
-        score += 10
-        flags.append("Immediate joining pressure")
-
-    if "no experience" in text:
-        score += 10
-        flags.append("No experience required")
-
-    if "work from home" in text:
-        score += 5
-        flags.append("Work from home offer")
-
-    if "limited seats" in text or "apply immediately" in text:
-        score += 10
-        flags.append("Urgency pressure")
-
-    salary = re.findall(r"\d+\s*lpa|\₹\d+", text)
-
-    if salary:
-        score += 10
-        flags.append("Unrealistic salary")
-
-    company = "Not Mentioned"
-
-    match = re.search(r"company[:\-]\s*(.*)", job_text, re.IGNORECASE)
-
-    if match:
-        company = match.group(1).strip()
-
-    if score >= 60:
-        verdict = "SCAM"
-        safe = "NO"
-
-    elif score >= 30:
-        verdict = "SUSPICIOUS"
-        safe = "PROCEED WITH CAUTION"
-
-    else:
-        verdict = "LEGITIMATE"
-        safe = "YES"
-
-    result = f"""
-LANGUAGE_DETECTED: English
-
-SCAM_SCORE: {score}
-
-VERDICT: {verdict}
-
-COMPANY_NAME: {company}
-
-RED_FLAGS_FOUND:
-"""
-
-    if flags:
-        for f in flags:
-            result += f"\n- {f}"
-    else:
-        result += "\n- No major red flags detected."
-
-    if verdict == "SCAM":
-        explanation = (
-            "This job posting contains multiple strong scam indicators such as payment requests, "
-            "unrealistic salary claims, urgency, or unofficial contact methods. "
-            "Avoid applying until the employer is verified through official sources."
+    try:
+        # Using the updated model name here
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=prompt
         )
-
-    elif verdict == "SUSPICIOUS":
-        explanation = (
-            "This job posting contains some warning signs that require careful verification. "
-            "Check the company's official website, recruiter details, and hiring process before applying."
-        )
-
-    else:
-        explanation = (
-            "This job posting appears to be legitimate based on the available information. "
-            "No major scam indicators were detected, but you should still verify the company through its official careers page."
-        )
-
-    result += f"""
-
-EXPLANATION:
-{explanation}
-
-SAFE_TO_APPLY: {safe}
-"""
-
-    company_status = verify_company(company)
-
-    return result, company_status
+        result = response.text
+        
+        # Extract company name to generate company_status
+        company_match = re.search(r'COMPANY_NAME:\s*(.+)', result)
+        company = company_match.group(1).strip() if company_match else "Not Mentioned"
+        company_status = verify_company(company)
+        
+        return result, company_status
+        
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return f"Error analyzing job: {str(e)}", "Error verifying company"
